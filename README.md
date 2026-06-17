@@ -71,32 +71,16 @@ The Docker image uses CUDA 12.2 + cuDNN 8 and pre-caches ShuffleNetV2 weights so
 
 ## Training
 
-Training uses a two-phase approach to avoid interference between the face and mask tasks.
-
-### Phase 1 — Face/Non-Face only
+Both heads are trained jointly end-to-end in a single run.
 
 ```bash
 python shufflenet_train.py \
     --data_root data/ \
-    --save_dir  checkpoints/phase1 \
-    --mask_weight 0.0 \
+    --save_dir  checkpoints/ \
     --epochs 50 --batch_size 256 --lr 1e-3
 ```
 
-The mask head is frozen during Phase 1. Checkpointed on best validation recall.
-
-### Phase 2 — Mask/Non-Mask only (resume from Phase 1)
-
-```bash
-python shufflenet_train.py \
-    --data_root data/ \
-    --save_dir  checkpoints/phase2 \
-    --face_weight 0.0 \
-    --resume checkpoints/phase1/best_face_head.pt \
-    --epochs 50 --lr 1e-3
-```
-
-The face head is frozen during Phase 2. Checkpointed on best validation accuracy.
+Best checkpoints are saved separately per head: `best_face_head.pt` on validation recall, `best_mask_head.pt` on validation accuracy.
 
 ### All training flags
 
@@ -139,9 +123,9 @@ After training, ONNX files are automatically exported. To export manually from e
 
 ```bash
 python shufflenet_export_infer.py --mode export \
-    --onnx_path   checkpoints/phase2/backbone.onnx \
-    --face_ckpt   checkpoints/phase1/best_face_head.pt \
-    --mask_ckpt   checkpoints/phase2/best_mask_head.pt \
+    --onnx_path   checkpoints/backbone.onnx \
+    --face_ckpt   checkpoints/best_face_head.pt \
+    --mask_ckpt   checkpoints/best_mask_head.pt \
     --embedding_dim 128 \
     --output      classifier_heads.onnx
 ```
@@ -177,15 +161,12 @@ python shufflenet_export_infer.py --mode benchmark \
     --runs       200
 ```
 
-**Latency target: P95 ≤ 5 ms** (CPU, single image)
 
-Preprocessing uses `cv2.dnn.blobFromImage` for a single C++ call instead of multiple numpy operations: subtract mean (127.5), scale (1/127.5), BGR→RGB, HWC→NCHW.
 
 ---
 
 ## Threshold Analysis
 
-Sweeps confidence thresholds from 0.0 to 1.0 in 0.01 increments and writes four CSV reports:
 
 ```bash
 python threshold_analysis.py \
