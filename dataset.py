@@ -11,7 +11,7 @@ Folder layout:
     data/
       train/
         face/        <- RetinaFace-cropped face images (112x112 BGR)
-        non-face/    <- Tanmay's non-face data run through onnx_inference.py
+        non-face/    <- non-face data run through onnx_inference.py
         mask/        <- masked face crops (from Yotta)
         non-mask/    <- unmasked face crops
       val/
